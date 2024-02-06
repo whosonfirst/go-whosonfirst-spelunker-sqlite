@@ -1,0 +1,21 @@
+{{ define "header" -}}
+<!DOCTYPE html>
+<html>
+    <head>
+	<meta charset="utf-8" />
+	<meta http-equiv="x-ua-compatible" content="ie=edge" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Who's On First | Spelunker{{ if (IsAvailable "PageTitle" .) }} | {{ .PageTitle }}{{ end }}</title>
+    </head>
+    <body>
+	<header>
+	    {{ if (IsAvailable "URIs" .) }}
+	    <form method="GET" action="{{ .URIs.Search }}">
+		<input type="text" name="q" id="q" value="" placeholder="..." />
+		<input type="submit" value="Search" />
+	    </form>
+	    {{ end }}
+	</header>
+	
+	<div class="container">
+{{ end -}}

@@ -1,0 +1,25 @@
+{{ define "id" -}}
+{{ template "header" . -}}
+
+<h2>
+    {{ GjsonGet .Properties "wof:name" }}
+    <small>Parented by <whosonfirst-place id="{{ GjsonGet .Properties "wof:parent_id" }}">{{ GjsonGet .Properties "wof:parent_id" }}</whosonfirst-place></small>
+</h2>
+
+<whosonfirst-map id="{{ .Id }}">
+    {{ if (IsAvailable "URIs" .) }}<img src="{{ .URIs.SVG }}/{{ .Id }}" />{{ end }}
+</whosonfirst-map>
+
+<ul>
+        {{ if (IsAvailable "URIs" .) }}<li><a href="{{ .URIs.Descendants }}/{{ .Id }}">See all the descendants of {{ GjsonGet .Properties "wof:name" }}</a></li>{{ end }}
+    {{ if (IsAvailable "URIs" .) }}<li><a href="{{ .URIs.GeoJSON }}/{{ .Id }}">Raw data (GeoJSON)</a></li>{{ end }}
+    <li><a href="https://github.com/whosonfirst-data/{{ GjsonGet .Properties "wof:repo" }}/FIXME">View on GitHub</a></li>
+    <li><a href="https://writefield.nextzen.org/place/edit?url=FIX ME">Edit in Write Field</a></li>
+</ul>
+
+<whosonfirst-properties>
+    <pre>{{ .Properties }}</pre>
+</whosonfirst-properties>
+
+{{ template "footer" . -}}
+{{ end -}}
