@@ -32,18 +32,22 @@ lambda:
 #
 # arm-none-eabi-gcc: error: unrecognized command-line option '-pthread'; did you mean '-fpthread'?
 #
+# Same same if I run from  brew install --cask gcc-arm-embedded
+# ARMGXX=/Applications/ArmGNUToolchain/13.2.Rel1/arm-none-eabi/bin/arm-none-eabi-g++
+# ARMGCC=/Applications/ArmGNUToolchain/13.2.Rel1/arm-none-eabi/bin/arm-none-eabi-gcc
+#
 # Maybe this doesn't work with "arm-none-eabi" ?
 
 ARMBIN=$(CWD)/work/arm-gnu-toolchain-13.2.Rel1-darwin-arm64-arm-none-eabi/bin
-ARMGCC=arm-none-eabi-gcc
-ARMGXX=arm-none-eabi-g++
+ARMGCC=$(ARMBIN)/arm-none-eabi-gcc
+ARMGXX=$(ARMBIN)/arm-none-eabi-g++
 
 lambda-server:
 	if test -f bootstrap; then rm -f bootstrap; fi
 	if test -f server.zip; then rm -f server.zip; fi
 	# GOARCH=arm64 GOOS=linux go build -mod $(GOMOD) -ldflags="$(LDFLAGS)" -tags "lambda.norpc" -o bootstrap cmd/httpd/main.go
-	CC=$(ARMBIN)/$(ARMGCC) \
-		CXX=$(ARMBIN)/$(ARMGXX) \
+	CC=$(ARMGCC) \
+		CXX=$(ARMGXX) \
 		CGO_ENABLED=1 \
 		GOARCH=arm64 \
 		GOOS=linux \
