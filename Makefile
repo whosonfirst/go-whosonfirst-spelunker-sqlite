@@ -15,16 +15,31 @@ server:
 lambda:
 	@make lambda-server
 
+# This does not work when run under MacOS...
+#
+# https://github.com/mattn/go-sqlite3
+# https://github.com/psanford/sqlite3vfs
+#
 # brew install filosottile/musl-cross/musl-cross --build-from-source --without-x86_64 --without-aarch64 --with-arm-hf --with-arm-linux-gnueabihf
 # brew install arm-linux-gnueabihf-binutils
 #
 # fails with:
 # cgo: C compiler "arm-linux-gnueabihf-gcc" not found: exec: "arm-linux-gnueabihf-gcc": executable file not found in $PATH
+#
+# Nothing in /usr/local/Cellar/arm-linux-gnueabihf-binutils/2.41_1/bin/
 
 lambda-server:
 	if test -f bootstrap; then rm -f bootstrap; fi
 	if test -f server.zip; then rm -f server.zip; fi
 	# GOARCH=arm64 GOOS=linux go build -mod $(GOMOD) -ldflags="$(LDFLAGS)" -tags "lambda.norpc" -o bootstrap cmd/httpd/main.go
-	CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ CGO_ENABLED=1 GOARCH=arm64 GOOS=linux go build -mod $(GOMOD) -ldflags="$(LDFLAGS)" -tags "lambda.norpc" -o bootstrap cmd/httpd/main.go
+	CC=arm-linux-gnueabihf-gcc \
+		CXX=arm-linux-gnueabihf-g++ \
+		CGO_ENABLED=1 GOARCH=arm64 \
+		GOOS=linux \
+		go build -mod $(GOMOD) \
+		-ldflags="$(LDFLAGS) -linkmode external -extldflags -static" \
+		-tags "lambda.norpc" \
+		-o bootstrap \
+		cmd/httpd/main.go
 	zip server.zip bootstrap
 	rm -f bootstrap	
