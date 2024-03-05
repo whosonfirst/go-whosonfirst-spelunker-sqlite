@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/aaronland/go-http-sanitize"
 	"github.com/aaronland/go-pagination"
@@ -23,10 +24,11 @@ type SearchHandlerOptions struct {
 }
 
 type SearchHandlerVars struct {
-	PageTitle  string
-	URIs       *httpd.URIs
-	Places     []spr.StandardPlacesResult
-	Pagination pagination.Results
+	PageTitle     string
+	URIs          *httpd.URIs
+	Places        []spr.StandardPlacesResult
+	Pagination    pagination.Results
+	PaginationURL string
 }
 
 func SearchHandler(opts *SearchHandlerOptions) (http.Handler, error) {
@@ -52,7 +54,7 @@ func SearchHandler(opts *SearchHandlerOptions) (http.Handler, error) {
 		q, err := sanitize.GetString(req, "q")
 
 		if err != nil {
-			slog.Error("Failed to determine query string", "error", err)
+			logger.Error("Failed to determine query string", "error", err)
 			http.Error(rsp, "womp womp", http.StatusInternalServerError)
 			return
 		}
@@ -62,7 +64,7 @@ func SearchHandler(opts *SearchHandlerOptions) (http.Handler, error) {
 			pg_opts, err := countable.NewCountableOptions()
 
 			if err != nil {
-				slog.Error("Failed to create pagination options", "error", err)
+				logger.Error("Failed to create pagination options", "error", err)
 				http.Error(rsp, "womp womp", http.StatusInternalServerError)
 				return
 			}
@@ -77,16 +79,22 @@ func SearchHandler(opts *SearchHandlerOptions) (http.Handler, error) {
 				Query: q,
 			}
 
-			r, pg_r, err := opts.Spelunker.Search(ctx, search_opts, pg_opts)
+			r, pg_r, err := opts.Spelunker.Search(ctx, pg_opts, search_opts)
 
 			if err != nil {
-				slog.Error("Failed to get search", "error", err)
+				logger.Error("Failed to get search", "error", err)
 				http.Error(rsp, "womp womp", http.StatusInternalServerError)
 				return
 			}
 
 			vars.Places = r.Results()
 			vars.Pagination = pg_r
+
+			pagination_q := &url.Values{}
+			pagination_q.Set("q", q)
+
+			pagination_url := opts.URIs.Search + "?" + pagination_q.Encode()
+			vars.PaginationURL = pagination_url
 		}
 
 		rsp.Header().Set("Content-Type", "text/html")
@@ -94,7 +102,7 @@ func SearchHandler(opts *SearchHandlerOptions) (http.Handler, error) {
 		err = t.Execute(rsp, vars)
 
 		if err != nil {
-			slog.Error("Failed to return ", "error", err)
+			logger.Error("Failed to return ", "error", err)
 			http.Error(rsp, "womp womp", http.StatusInternalServerError)
 		}
 

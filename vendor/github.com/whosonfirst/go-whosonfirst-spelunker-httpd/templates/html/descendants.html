@@ -1,13 +1,13 @@
 {{ define "descendants" -}}
-{{ template "header" . -}}
+{{ template "inc_head" . -}}
 
-{{ template "spr_places" . -}}
+<h2>Descendants of <span class="hey-look wof-namify" data-wof-id="{{ .Id }}">{{ .Id }}</span></h2>
 
-{{ if (IsAvailable "Pagination" .) -}}
-{{ if gt .Pagination.Pages 1 }}
-{{ template "inc_pagination" . -}}
-{{ end }}
-{{ end -}}
+{{ template "inc_places" . -}}
 
-{{ template "footer" . -}}
+{{ template "inc_foot" . -}}
+
+<script type="text/javascript" src="{{ .URIs.Static }}javascript/whosonfirst.spelunker.descendants.init.js"></script>
+<script type="text/javascript" src="{{ .URIs.Static }}javascript/whosonfirst.spelunker.places.init.js"></script>
+<script type="text/javascript" src="{{ .URIs.Static }}javascript/whosonfirst.spelunker.facets.init.js"></script>
 {{ end -}}

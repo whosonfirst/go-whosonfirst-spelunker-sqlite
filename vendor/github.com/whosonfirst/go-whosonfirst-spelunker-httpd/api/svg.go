@@ -54,14 +54,16 @@ func DefaultSVGSizes() map[string]SVGSize {
 
 func SVGHandler(opts *SVGHandlerOptions) (http.Handler, error) {
 
+	logger := slog.Default()
+
 	fn := func(rsp http.ResponseWriter, req *http.Request) {
 
 		ctx := req.Context()
 
-		logger := slog.Default()
 		logger = logger.With("request", req.URL)
+		logger = logger.With("address", req.RemoteAddr)
 
-		uri, err, status := httpd.ParseURIFromRequest(req, nil)
+		req_uri, err, status := httpd.ParseURIFromRequest(req, nil)
 
 		if err != nil {
 
@@ -71,12 +73,12 @@ func SVGHandler(opts *SVGHandlerOptions) (http.Handler, error) {
 			return
 		}
 
-		logger = logger.With("wofid", uri.Id)
+		logger = logger.With("wofid", req_uri.Id)
 
-		f, err := opts.Spelunker.GetById(ctx, uri.Id)
+		f, err := httpd.FeatureFromRequestURI(ctx, opts.Spelunker, req_uri)
 
 		if err != nil {
-			slog.Error("Failed to get by ID", "id", uri.Id, "error", err)
+			slog.Error("Failed to get by ID", "id", req_uri.Id, "error", err)
 			http.Error(rsp, spelunker.ErrNotFound.Error(), http.StatusNotFound)
 			return
 		}

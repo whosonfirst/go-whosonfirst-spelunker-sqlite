@@ -6,10 +6,13 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/aaronland/go-pagination"
 	"github.com/aaronland/go-roster"
 	"github.com/whosonfirst/go-whosonfirst-placetypes"
+	"github.com/whosonfirst/go-whosonfirst-spr/v2"
+	"github.com/whosonfirst/go-whosonfirst-uri"
 )
 
 var spelunker_roster roster.Roster
@@ -20,29 +23,70 @@ type SpelunkerInitializationFunc func(ctx context.Context, uri string) (Spelunke
 
 // Spelunker is an interface for writing data to multiple sources or targets.
 type Spelunker interface {
+	// Retrieve an individual Who's On First record by its unique ID
 	GetById(context.Context, int64) ([]byte, error)
-	GetDescendants(context.Context, int64, pagination.Options) ([][]byte, pagination.Results, error)
+	// Retrieve an alternate geometry record for a Who's On First record by its unique ID.
+	GetAlternateGeometryById(context.Context, int64, *uri.AltGeom) ([]byte, error)
+	// Retrieve all the Who's On First record that are a descendant of a specific Who's On First ID.
+	GetDescendants(context.Context, pagination.Options, int64, []Filter) (spr.StandardPlacesResults, pagination.Results, error)
+	GetDescendantsFaceted(context.Context, int64, []Filter, []*Facet) ([]*Faceting, error)
+	// Return the total number of Who's On First records that are a descendant of a specific Who's On First ID.
+	CountDescendants(context.Context, int64) (int64, error)
+	// Retrieve all the Who's On First records that match a search criteria.
+	Search(context.Context, pagination.Options, *SearchOptions) (spr.StandardPlacesResults, pagination.Results, error)
+	// Retrieve all the Who's On First records that have been modified with a window of time.
+	GetRecent(context.Context, pagination.Options, time.Duration, []Filter) (spr.StandardPlacesResults, pagination.Results, error)
 
-	Search(context.Context, *Query) ([][]byte, error)
+	GetPlacetypes(context.Context) (*Faceting, error)
+	GetConcordances(context.Context) (*Faceting, error)
 
-	GetRecent(context.Context) ([][]byte, error)
-	GetCurrent(context.Context) ([][]byte, error)
+	HasPlacetype(context.Context, pagination.Options, *placetypes.WOFPlacetype, []Filter) (spr.StandardPlacesResults, pagination.Results, error)
+	HasPlacetypeFaceted(context.Context, pagination.Options, *placetypes.WOFPlacetype, []Filter, []*Facet) ([]*Faceting, error)
 
-	GetPlacetypes(context.Context) ([]placetypes.WOFPlacetype, error)
-	GetPlacetype(context.Context, string) (placetypes.WOFPlacetype, error)
+	// Update this to expect *Concordance instead of parts
+	HasConcordance(context.Context, pagination.Options, string, string, string, []Filter) (spr.StandardPlacesResults, pagination.Results, error)
+	HasConcordanceFaceted(context.Context, pagination.Options, string, string, string, []Filter, []*Facet) ([]*Faceting, error)
 
-	GetFacetsForRecent(context.Context) (*Facets, error)
-	GetFacetsForDescendants(context.Context, int64) (*Facets, error)
-	GetFacetsForCurrent(context.Context) (*Facets, error)
-	GetFacetsForPlacetype(context.Context) (*Facets, error)
-	GetFacetsForSearch(context.Context, *Query) (*Facets, error)
+	// TBD...
+	// Unclear whether this should implement all of https://github.com/whosonfirst/go-whosonfirst-spatial/blob/main/spatial.go#L11
+	// or https://github.com/whosonfirst/go-whosonfirst-spatial/blob/main/database/database.go#L16
+	//
+	// See also:
+	// https://github.com/whosonfirst/go-whosonfirst-spatial-pip/blob/main/http/api/pointinpolygon.go
+	// which in turns requires implementing https://github.com/whosonfirst/go-whosonfirst-spatial/blob/main/app/app.go#L21
+	//
+	// So it all starts to be a bit much...
+	//
+	// Maybe all we want are the structs and helper methods from this
+	// https://github.com/whosonfirst/go-whosonfirst-spatial-pip/blob/main/pip.go
+	//
+	// But as twisty as all the spatial database stuff is when you start trying to make a simpler
+	// version you just always end up with the same problems and questions...
+	//
+	// See also:
+	// https://github.com/whosonfirst/go-whosonfirst-spatial-pmtiles/blob/main/database.go
+	//
+	// PointInPolygon(context.Context, orb.Point) (spr.StandardPlacesResults, error)
 
-	// GetBrands()
-	// GetBrandById()
-	// GetFacetsForBrand()
+	// Not implemented yet
 
-	GetLanguages(context.Context) ([]*Language, error)
-	GetLanguage(context.Context, string) (*Language, error)
+	/*
+		GetCurrent(context.Context) ([][]byte, error)
+
+		GetPlacetypes(context.Context) ([]placetypes.WOFPlacetype, error)
+		GetPlacetype(context.Context, string) (placetypes.WOFPlacetype, error)
+
+		GetFacetsForRecent(context.Context) (*Facets, error)
+		GetFacetsForDescendants(context.Context, int64) (*Facets, error)
+		GetFacetsForCurrent(context.Context) (*Facets, error)
+		GetFacetsForPlacetype(context.Context) (*Facets, error)
+		GetFacetsForSearch(context.Context, *SearchOptions) (*Facets, error)
+
+		GetLanguages(context.Context) ([]*Language, error)
+		GetLanguage(context.Context, string) (*Language, error)
+	*/
+
+	// TBD
 
 	/*
 

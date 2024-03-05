@@ -1,13 +1,9 @@
 {{ define "search" -}}
-{{ template "header" . -}}
+{{ template "inc_head" . -}}
 
-{{ template "spr_places" . -}}
+{{ template "inc_places" . -}}
 
-{{ if (IsAvailable "Pagination" .) -}}
-{{ if gt .Pagination.Pages 1 }}
-{{ template "inc_pagination" . -}}
-{{ end }}
-{{ end -}}
+{{ template "inc_foot" . -}}
 
-{{ template "footer" . -}}
+<script type="text/javascript" src="{{ .URIs.Static }}javascript/whosonfirst.spelunker.places.init.js"></script>
 {{ end -}}

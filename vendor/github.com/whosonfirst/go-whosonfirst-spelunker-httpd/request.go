@@ -11,6 +11,7 @@ import (
 
 	"github.com/aaronland/go-http-sanitize"
 	"github.com/whosonfirst/go-reader"
+	"github.com/whosonfirst/go-whosonfirst-spelunker"
 	"github.com/whosonfirst/go-whosonfirst-spelunker-httpd/webfinger"
 	wof_uri "github.com/whosonfirst/go-whosonfirst-uri"
 )
@@ -139,4 +140,25 @@ func ParsePageNumberFromRequest(req *go_http.Request) (int64, error) {
 	}
 
 	return page, nil
+}
+
+func FeatureFromRequestURI(ctx context.Context, sp spelunker.Spelunker, req_uri *URI) ([]byte, error) {
+
+	var f []byte
+	var err error
+
+	wof_id := req_uri.Id
+
+	if req_uri.IsAlternate {
+		alt_geom := req_uri.URIArgs.AltGeom
+		f, err = sp.GetAlternateGeometryById(ctx, wof_id, alt_geom)
+	} else {
+		f, err = sp.GetById(ctx, wof_id)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve feature for %d, %w", err)
+	}
+
+	return f, nil
 }

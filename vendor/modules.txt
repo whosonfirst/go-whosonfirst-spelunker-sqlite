@@ -1,8 +1,8 @@
 # github.com/aaronland/go-http-sanitize v0.0.8
 ## explicit; go 1.12
 github.com/aaronland/go-http-sanitize
-# github.com/aaronland/go-http-server v1.3.0
-## explicit; go 1.18
+# github.com/aaronland/go-http-server v1.4.0
+## explicit; go 1.22
 github.com/aaronland/go-http-server
 github.com/aaronland/go-http-server/handler
 # github.com/aaronland/go-pagination v0.2.0
@@ -19,21 +19,21 @@ github.com/aaronland/go-roster
 ## explicit; go 1.18
 github.com/aaronland/go-sqlite
 github.com/aaronland/go-sqlite/database
-# github.com/akrylysov/algnhsa v1.0.0
+# github.com/akrylysov/algnhsa v1.1.0
 ## explicit; go 1.18
 github.com/akrylysov/algnhsa
-# github.com/aws/aws-lambda-go v1.41.0
+# github.com/aws/aws-lambda-go v1.46.0
 ## explicit; go 1.18
 github.com/aws/aws-lambda-go/events
 github.com/aws/aws-lambda-go/lambda
 github.com/aws/aws-lambda-go/lambda/handlertrace
 github.com/aws/aws-lambda-go/lambda/messages
 github.com/aws/aws-lambda-go/lambdacontext
-# github.com/dominikbraun/graph v0.16.1
+# github.com/dominikbraun/graph v0.23.0
 ## explicit; go 1.18
 github.com/dominikbraun/graph
 github.com/dominikbraun/graph/draw
-# github.com/hashicorp/errwrap v1.1.0
+# github.com/hashicorp/errwrap v1.0.0
 ## explicit
 github.com/hashicorp/errwrap
 # github.com/hashicorp/go-multierror v1.1.1
@@ -82,6 +82,9 @@ github.com/sfomuseum/go-edtf/tests
 # github.com/sfomuseum/go-flags v0.10.0
 ## explicit; go 1.16
 github.com/sfomuseum/go-flags/flagset
+# github.com/sfomuseum/go-geojsonld v1.0.0
+## explicit; go 1.13
+github.com/sfomuseum/go-geojsonld
 # github.com/sfomuseum/go-http-auth v0.9.0
 ## explicit; go 1.18
 github.com/sfomuseum/go-http-auth
@@ -89,12 +92,15 @@ github.com/sfomuseum/go-http-auth
 ## explicit; go 1.18
 github.com/sfomuseum/go-template/funcs
 github.com/sfomuseum/go-template/html
+# github.com/sfomuseum/iso8601duration v1.1.0
+## explicit; go 1.18
+github.com/sfomuseum/iso8601duration
 # github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 ## explicit; go 1.13
 github.com/skip2/go-qrcode
 github.com/skip2/go-qrcode/bitset
 github.com/skip2/go-qrcode/reedsolomon
-# github.com/tidwall/gjson v1.17.0
+# github.com/tidwall/gjson v1.17.1
 ## explicit; go 1.12
 github.com/tidwall/gjson
 # github.com/tidwall/match v1.1.1
@@ -103,6 +109,9 @@ github.com/tidwall/match
 # github.com/tidwall/pretty v1.2.0
 ## explicit; go 1.16
 github.com/tidwall/pretty
+# github.com/tidwall/sjson v1.2.2
+## explicit; go 1.14
+github.com/tidwall/sjson
 # github.com/whosonfirst/go-geojson-svg v0.0.5
 ## explicit; go 1.16
 github.com/whosonfirst/go-geojson-svg
@@ -124,32 +133,34 @@ github.com/whosonfirst/go-whosonfirst-feature/properties
 ## explicit; go 1.18
 github.com/whosonfirst/go-whosonfirst-flags
 github.com/whosonfirst/go-whosonfirst-flags/existential
-# github.com/whosonfirst/go-whosonfirst-placetypes v0.7.0
+# github.com/whosonfirst/go-whosonfirst-placetypes v0.7.1
 ## explicit; go 1.18
 github.com/whosonfirst/go-whosonfirst-placetypes
-# github.com/whosonfirst/go-whosonfirst-sources v0.1.0
-## explicit; go 1.12
+# github.com/whosonfirst/go-whosonfirst-sources v0.1.1
+## explicit; go 1.18
 github.com/whosonfirst/go-whosonfirst-sources
 github.com/whosonfirst/go-whosonfirst-sources/sources
-# github.com/whosonfirst/go-whosonfirst-spelunker v0.0.0-20240204023256-592c5ef464db
-## explicit; go 1.21
+# github.com/whosonfirst/go-whosonfirst-spelunker v0.0.0-20240228164604-d1987c2473a1
+## explicit; go 1.22
 github.com/whosonfirst/go-whosonfirst-spelunker
-# github.com/whosonfirst/go-whosonfirst-spelunker-httpd v0.0.0-20240206171607-9125cc58f510
+# github.com/whosonfirst/go-whosonfirst-spelunker-httpd v0.0.0-20240305060935-b591673bd39e
 ## explicit; go 1.22
 github.com/whosonfirst/go-whosonfirst-spelunker-httpd
 github.com/whosonfirst/go-whosonfirst-spelunker-httpd/api
 github.com/whosonfirst/go-whosonfirst-spelunker-httpd/app/server
+github.com/whosonfirst/go-whosonfirst-spelunker-httpd/static
+github.com/whosonfirst/go-whosonfirst-spelunker-httpd/templates/funcs
 github.com/whosonfirst/go-whosonfirst-spelunker-httpd/templates/html
 github.com/whosonfirst/go-whosonfirst-spelunker-httpd/webfinger
 github.com/whosonfirst/go-whosonfirst-spelunker-httpd/www
-# github.com/whosonfirst/go-whosonfirst-spelunker-sql v0.0.0-20240206171546-a839016f8a47
+# github.com/whosonfirst/go-whosonfirst-spelunker-sql v0.0.0-20240305061142-ef484ceea1d3
 ## explicit; go 1.22
 github.com/whosonfirst/go-whosonfirst-spelunker-sql
 # github.com/whosonfirst/go-whosonfirst-spr/v2 v2.3.7
 ## explicit; go 1.18
 github.com/whosonfirst/go-whosonfirst-spr/v2
 github.com/whosonfirst/go-whosonfirst-spr/v2/util
-# github.com/whosonfirst/go-whosonfirst-sql v0.0.1
+# github.com/whosonfirst/go-whosonfirst-sql v0.0.3
 ## explicit; go 1.21.3
 github.com/whosonfirst/go-whosonfirst-sql/tables
 # github.com/whosonfirst/go-whosonfirst-sqlite-spr v0.3.3

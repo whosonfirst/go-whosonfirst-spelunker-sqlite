@@ -22,10 +22,14 @@ type DescendantsHandlerOptions struct {
 }
 
 type DescendantsHandlerVars struct {
-	PageTitle  string
-	URIs       *httpd.URIs
-	Places     []spr.StandardPlacesResult
-	Pagination pagination.Results
+	PageTitle        string
+	Id               int64
+	URIs             *httpd.URIs
+	Places           []spr.StandardPlacesResult
+	Pagination       pagination.Results
+	PaginationURL    string
+	FacetsURL        string
+	FacetsContextURL string
 }
 
 func DescendantsHandler(opts *DescendantsHandlerOptions) (http.Handler, error) {
@@ -43,12 +47,10 @@ func DescendantsHandler(opts *DescendantsHandlerOptions) (http.Handler, error) {
 		logger := slog.Default()
 		logger = logger.With("request", req.URL)
 
-		slog.Info("Get descendants")
-
 		uri, err, status := httpd.ParseURIFromRequest(req, nil)
 
 		if err != nil {
-			slog.Error("Failed to parse URI from request", "error", err)
+			logger.Error("Failed to parse URI from request", "error", err)
 			http.Error(rsp, spelunker.ErrNotFound.Error(), status)
 			return
 		}
@@ -58,7 +60,7 @@ func DescendantsHandler(opts *DescendantsHandlerOptions) (http.Handler, error) {
 		pg_opts, err := countable.NewCountableOptions()
 
 		if err != nil {
-			slog.Error("Failed to create pagination options", "error", err)
+			logger.Error("Failed to create pagination options", "error", err)
 			http.Error(rsp, "womp womp", http.StatusInternalServerError)
 			return
 		}
@@ -69,18 +71,42 @@ func DescendantsHandler(opts *DescendantsHandlerOptions) (http.Handler, error) {
 			pg_opts.Pointer(pg)
 		}
 
-		r, pg_r, err := opts.Spelunker.GetDescendants(ctx, uri.Id, pg_opts)
+		filter_params := []string{
+			"placetype",
+			"country",
+		}
+
+		filters, err := httpd.FiltersFromRequest(ctx, req, filter_params)
 
 		if err != nil {
-			slog.Error("Failed to get descendants", "error", err)
+			logger.Error("Failed to derive filters from request", "error", err)
+			http.Error(rsp, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		r, pg_r, err := opts.Spelunker.GetDescendants(ctx, pg_opts, uri.Id, filters)
+
+		if err != nil {
+			logger.Error("Failed to get descendants", "error", err)
 			http.Error(rsp, "womp womp", http.StatusInternalServerError)
 			return
 		}
 
+		// This is not ideal but I am not sure what is better yet...
+		pagination_url := fmt.Sprintf("%s?", httpd.URIForId(opts.URIs.Descendants, uri.Id))
+
+		// This is not ideal but I am not sure what is better yet...
+		facets_url := httpd.URIForId(opts.URIs.DescendantsFaceted, uri.Id)
+		facets_context_url := req.URL.Path
+
 		vars := DescendantsHandlerVars{
-			Places:     r.Results(),
-			Pagination: pg_r,
-			URIs:       opts.URIs,
+			Id:               uri.Id,
+			Places:           r.Results(),
+			Pagination:       pg_r,
+			URIs:             opts.URIs,
+			PaginationURL:    pagination_url,
+			FacetsURL:        facets_url,
+			FacetsContextURL: facets_context_url,
 		}
 
 		rsp.Header().Set("Content-Type", "text/html")
@@ -88,7 +114,7 @@ func DescendantsHandler(opts *DescendantsHandlerOptions) (http.Handler, error) {
 		err = t.Execute(rsp, vars)
 
 		if err != nil {
-			slog.Error("Failed to return ", "error", err)
+			logger.Error("Failed to return ", "error", err)
 			http.Error(rsp, "womp womp", http.StatusInternalServerError)
 		}
 

@@ -14,14 +14,16 @@ type GeoJSONHandlerOptions struct {
 
 func GeoJSONHandler(opts *GeoJSONHandlerOptions) (http.Handler, error) {
 
+	logger := slog.Default()
+
 	fn := func(rsp http.ResponseWriter, req *http.Request) {
 
 		ctx := req.Context()
 
-		logger := slog.Default()
 		logger = logger.With("request", req.URL)
+		logger = logger.With("address", req.RemoteAddr)
 
-		uri, err, status := httpd.ParseURIFromRequest(req, nil)
+		req_uri, err, status := httpd.ParseURIFromRequest(req, nil)
 
 		if err != nil {
 			slog.Error("Failed to parse URI from request", "error", err)
@@ -29,10 +31,13 @@ func GeoJSONHandler(opts *GeoJSONHandlerOptions) (http.Handler, error) {
 			return
 		}
 
-		r, err := opts.Spelunker.GetById(ctx, uri.Id)
+		wof_id := req_uri.Id
+		logger = logger.With("wof id", wof_id)
+
+		r, err := httpd.FeatureFromRequestURI(ctx, opts.Spelunker, req_uri)
 
 		if err != nil {
-			slog.Error("Failed to get by ID", "id", uri.Id, "error", err)
+			slog.Error("Failed to get by ID", "id", wof_id, "error", err)
 			http.Error(rsp, spelunker.ErrNotFound.Error(), http.StatusNotFound)
 			return
 		}

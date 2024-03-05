@@ -9,7 +9,6 @@ import (
 
 	"github.com/aaronland/go-http-server"
 	"github.com/aaronland/go-http-server/handler"
-	"github.com/whosonfirst/go-whosonfirst-spelunker-httpd"
 )
 
 func Run(ctx context.Context, logger *slog.Logger) error {
@@ -43,48 +42,75 @@ func RunWithOptions(ctx context.Context, opts *RunOptions, logger *slog.Logger) 
 
 	run_options = v
 
-	// To do: Move this in to RunOptionsFromFlagSet
-
-	uris_table = &httpd.URIs{
-		// WWW/human-readable
-		Descendants: "/id/{id}/descendants",		
-		Id: "/id/",
-		// Descendants: "/descendants/", // FIX ME: Update to use improved syntax in Go 1.22
-		Search:      "/search/",
-
-		// API/machine-readable
-		GeoJSON: "/geojson/",
-		SVG:     "/svg/",
-	}
-
 	// To do: Add/consult "is enabled" flags
+
+	// START OF defer loading handlers (and all their dependencies) until they are actually routed to
+	// in case we are running in a "serverless" environment like AWS Lambda
 
 	handlers := map[string]handler.RouteHandlerFunc{
 
 		// WWW/human-readable
-		uris_table.Descendants: descendantsHandlerFunc,
-		uris_table.Id:          idHandlerFunc,
-		uris_table.Search:      searchHandlerFunc,
+		run_options.URIs.Placetypes:             placetypesHandlerFunc,
+		run_options.URIs.Placetype:              hasPlacetypeHandlerFunc,
+		run_options.URIs.Concordances:           concordancesHandlerFunc,
+		run_options.URIs.ConcordanceNS:          hasConcordanceHandlerFunc,
+		run_options.URIs.ConcordanceNSPred:      hasConcordanceHandlerFunc,
+		run_options.URIs.ConcordanceNSPredValue: hasConcordanceHandlerFunc,
+		run_options.URIs.Recent:                 recentHandlerFunc,
+		run_options.URIs.Descendants:            descendantsHandlerFunc,
+		run_options.URIs.Id:                     idHandlerFunc,
+		run_options.URIs.Search:                 searchHandlerFunc,
+		run_options.URIs.About:                  aboutHandlerFunc,
+		run_options.URIs.Index:                  indexHandlerFunc,
+
+		// Static assets
+		run_options.URIs.Static: staticHandlerFunc,
 
 		// API/machine-readable
-		uris_table.GeoJSON: geoJSONHandlerFunc,
-		uris_table.SVG:     svgHandlerFunc,
+		run_options.URIs.DescendantsFaceted: descendantsFacetedHandlerFunc,
+		run_options.URIs.GeoJSON:            geoJSONHandlerFunc,
+		run_options.URIs.GeoJSONLD:          geoJSONLDHandlerFunc,
+		run_options.URIs.NavPlace:           navPlaceHandlerFunc,
+		run_options.URIs.Select:             selectHandlerFunc,
+		run_options.URIs.SPR:                sprHandlerFunc,
+		run_options.URIs.SVG:                svgHandlerFunc,
 	}
 
-	go func() {
-		for uri, h := range handlers {
-			slog.Info("Enable handler", "uri", uri, "handler", fmt.Sprintf("%T", h))
-		}
-	}()
+	assign_handlers := func(handler_map map[string]handler.RouteHandlerFunc, paths []string, handler_func handler.RouteHandlerFunc) {
 
-	route_handler, err := handler.RouteHandler(handlers)
+		for _, p := range paths {
+			handler_map[p] = handler_func
+		}
+	}
+
+	assign_handlers(handlers, run_options.URIs.IdAlt, idHandlerFunc)
+	assign_handlers(handlers, run_options.URIs.DescendantsAlt, descendantsHandlerFunc)
+
+	// API/machine-readable
+	assign_handlers(handlers, run_options.URIs.GeoJSONAlt, geoJSONHandlerFunc)
+	assign_handlers(handlers, run_options.URIs.GeoJSONLDAlt, geoJSONLDHandlerFunc)
+	assign_handlers(handlers, run_options.URIs.NavPlaceAlt, navPlaceHandlerFunc)
+	assign_handlers(handlers, run_options.URIs.SelectAlt, selectHandlerFunc)
+	assign_handlers(handlers, run_options.URIs.SPRAlt, sprHandlerFunc)
+	assign_handlers(handlers, run_options.URIs.SVGAlt, svgHandlerFunc)
+
+	log_logger := slog.NewLogLogger(logger.Handler(), slog.LevelInfo)
+
+	route_handler_opts := &handler.RouteHandlerOptions{
+		Handlers: handlers,
+		Logger:   log_logger,
+	}
+
+	route_handler, err := handler.RouteHandlerWithOptions(route_handler_opts)
 
 	if err != nil {
-		return fmt.Errorf("Failed to create route handlers, %w", err)
+		return fmt.Errorf("Failed to configure route handler, %w", err)
 	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/", route_handler)
+
+	// END OF defer loading handlers (and all their dependencies) until they are actually routed to
 
 	s, err := server.NewServer(ctx, run_options.ServerURI)
 
@@ -92,8 +118,13 @@ func RunWithOptions(ctx context.Context, opts *RunOptions, logger *slog.Logger) 
 		return fmt.Errorf("Failed to create new server, %w", err)
 	}
 
-	slog.Info("Listening for requests", "address", s.Address())
+	go func() {
+		for uri, h := range handlers {
+			slog.Debug("Enable handler", "uri", uri, "handler", fmt.Sprintf("%T", h))
+		}
+	}()
 
+	slog.Info("Listening for requests", "address", s.Address())
 	err = s.ListenAndServe(ctx, mux)
 
 	if err != nil {
