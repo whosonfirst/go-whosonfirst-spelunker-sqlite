@@ -13,6 +13,8 @@ server:
 lambda:
 	@make lambda-server
 
+# Note: This requires 'zig'
+
 lambda-server:
 	if test -f bootstrap; then rm -f bootstrap; fi
 	if test -f server.zip; then rm -f server.zip; fi
