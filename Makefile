@@ -37,6 +37,8 @@ lambda:
 # ARMGCC=/Applications/ArmGNUToolchain/13.2.Rel1/arm-none-eabi/bin/arm-none-eabi-gcc
 #
 # Maybe this doesn't work with "arm-none-eabi" ?
+#
+# To investigate: https://github.com/psanford/lambdamake/blob/main/Makefile.arm
 
 ARMBIN=$(CWD)/work/arm-gnu-toolchain-13.2.Rel1-darwin-arm64-arm-none-eabi/bin
 ARMGCC=$(ARMBIN)/arm-none-eabi-gcc
