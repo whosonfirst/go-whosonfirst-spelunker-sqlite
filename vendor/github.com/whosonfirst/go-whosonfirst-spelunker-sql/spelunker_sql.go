@@ -4,7 +4,7 @@ import (
 	"context"
 	db_sql "database/sql"
 	"fmt"
-	_ "log/slog"
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -48,11 +48,15 @@ func NewSQLSpelunker(ctx context.Context, uri string) (spelunker.Spelunker, erro
 		return nil, fmt.Errorf("Missing ?dsn= parameter")
 	}
 
+	slog.Info("DSN", "dsn", dsn)
+
 	db, err := db_sql.Open(engine, dsn)
 
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open database connection, %w", err)
 	}
+
+	db.SetMaxOpenConns(1)
 
 	s := &SQLSpelunker{
 		engine: engine,
@@ -98,104 +102,6 @@ func (s *SQLSpelunker) getById(ctx context.Context, q string, args ...interface{
 	}
 }
 
-func (s *SQLSpelunker) GetDescendants(ctx context.Context, pg_opts pagination.Options, id int64, filters []spelunker.Filter) (wof_spr.StandardPlacesResults, pagination.Results, error) {
-
-	where := []string{
-		"instr(belongsto, ?) > 0",
-	}
-
-	args := []interface{}{
-		id,
-	}
-
-	for _, f := range filters {
-
-		switch f.Scheme() {
-		case spelunker.COUNTRY_FILTER_SCHEME:
-			where = append(where, "country = ?")
-			args = append(args, f.Value())
-		case spelunker.PLACETYPE_FILTER_SCHEME:
-			where = append(where, "placetype = ?")
-			args = append(args, f.Value())
-		default:
-			return nil, nil, fmt.Errorf("Invalid or unsupported filter scheme, %s", f.Scheme())
-		}
-
-	}
-
-	str_where := strings.Join(where, " AND ")
-
-	return s.querySPR(ctx, pg_opts, str_where, args...)
-}
-
-func (s *SQLSpelunker) GetDescendantsFaceted(ctx context.Context, id int64, filters []spelunker.Filter, facets []*spelunker.Facet) ([]*spelunker.Faceting, error) {
-
-	where := []string{
-		"instr(belongsto, ?) > 0",
-	}
-
-	args := []interface{}{
-		id,
-	}
-
-	for _, f := range filters {
-
-		switch f.Scheme() {
-		case spelunker.COUNTRY_FILTER_SCHEME:
-			where = append(where, "country = ?")
-			args = append(args, f.Value())
-		case spelunker.PLACETYPE_FILTER_SCHEME:
-			where = append(where, "placetype = ?")
-			args = append(args, f.Value())
-		default:
-			return nil, fmt.Errorf("Invalid or unsupported filter scheme, %s", f.Scheme())
-		}
-
-	}
-
-	str_where := strings.Join(where, " AND ")
-
-	// START OF do this in go routines
-
-	f := facets[0]
-
-	counts, err := s.facetSPR(ctx, f, str_where, args...)
-
-	if err != nil {
-		return nil, fmt.Errorf("Failed to derive facets for %s, %w", f, err)
-	}
-
-	results := []*spelunker.Faceting{
-		&spelunker.Faceting{
-			Facet:   f,
-			Results: counts,
-		},
-	}
-
-	// END OF do this in go routines
-
-	return results, nil
-}
-
-func (s *SQLSpelunker) CountDescendants(ctx context.Context, id int64) (int64, error) {
-
-	var count int64
-
-	q := fmt.Sprintf("SELECT COUNT(id) FROM %s WHERE instr(belongsto, ?)", tables.SPR_TABLE_NAME)
-
-	row := s.db.QueryRowContext(ctx, q, id)
-	err := row.Scan(&count)
-
-	switch {
-	case err == db_sql.ErrNoRows:
-		return 0, spelunker.ErrNotFound
-	case err != nil:
-		return 0, fmt.Errorf("Failed to execute count descendants query for %d, %w", id, err)
-	default:
-		return count, nil
-	}
-}
-
 func (s *SQLSpelunker) HasPlacetype(ctx context.Context, pg_opts pagination.Options, pt *placetypes.WOFPlacetype, filters []spelunker.Filter) (wof_spr.StandardPlacesResults, pagination.Results, error) {
 
 	where := []string{
@@ -231,7 +137,7 @@ func (s *SQLSpelunker) Search(ctx context.Context, pg_opts pagination.Options, s
 		"names_all MATCH ?",
 	}
 
-	str_where := strings.Join(where, " AND ")	
+	str_where := strings.Join(where, " AND ")
 	return s.querySearch(ctx, pg_opts, str_where, search_opts.Query)
 }
 
@@ -244,7 +150,7 @@ func (s *SQLSpelunker) GetRecent(ctx context.Context, pg_opts pagination.Options
 		"lastmodified >= ? ORDER BY lastmodified DESC",
 	}
 
-	str_where := strings.Join(where, " AND ")		
+	str_where := strings.Join(where, " AND ")
 	return s.querySPR(ctx, pg_opts, str_where, then)
 }
 
@@ -427,11 +333,10 @@ func (s *SQLSpelunker) HasConcordance(ctx context.Context, pg_opts pagination.Op
 		return spr_results, pg_results, nil
 	}
 
-	
 	spr_where := []string{
 		fmt.Sprintf("id IN (%s)", strings.Join(qms, ",")),
 	}
 
- 	str_spr_where := strings.Join(spr_where, " AND ")
+	str_spr_where := strings.Join(spr_where, " AND ")
 	return s.querySPR(ctx, pg_opts, str_spr_where, ids...)
 }

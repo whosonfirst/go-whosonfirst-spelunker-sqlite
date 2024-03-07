@@ -112,7 +112,7 @@ func checkVFS(spelunker_uri string) (bool, string, error) {
 		return false, spelunker_uri, fmt.Errorf("Failed to register VFS", "error", err)
 	}
 
-	dsn := "spelunker.db?vfs=httpvfs&mode=ro"
+	dsn := "spelunker.db?vfs=httpvfs&mode=ro&cache=shared&mode=memory"
 	q.Set("dsn", dsn)
 	q.Del("vfs")
 

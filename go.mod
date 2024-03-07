@@ -7,7 +7,7 @@ require (
 	github.com/psanford/sqlite3vfs v0.0.0-20231201192653-4c99abef8114
 	github.com/psanford/sqlite3vfshttp v0.0.0-20230409054408-6eccb673c1d1
 	github.com/whosonfirst/go-whosonfirst-spelunker-httpd v0.0.0-20240305060935-b591673bd39e
-	github.com/whosonfirst/go-whosonfirst-spelunker-sql v0.0.0-20240305061142-ef484ceea1d3
+	github.com/whosonfirst/go-whosonfirst-spelunker-sql v0.0.0-20240307165506-1eb1cc595aa1
 )
 
 require (

@@ -153,7 +153,7 @@ github.com/whosonfirst/go-whosonfirst-spelunker-httpd/templates/funcs
 github.com/whosonfirst/go-whosonfirst-spelunker-httpd/templates/html
 github.com/whosonfirst/go-whosonfirst-spelunker-httpd/webfinger
 github.com/whosonfirst/go-whosonfirst-spelunker-httpd/www
-# github.com/whosonfirst/go-whosonfirst-spelunker-sql v0.0.0-20240305061142-ef484ceea1d3
+# github.com/whosonfirst/go-whosonfirst-spelunker-sql v0.0.0-20240307165506-1eb1cc595aa1
 ## explicit; go 1.22
 github.com/whosonfirst/go-whosonfirst-spelunker-sql
 # github.com/whosonfirst/go-whosonfirst-spr/v2 v2.3.7
