@@ -46,7 +46,12 @@ window.addEventListener("load", function load(event){
 		var coords = f.geometry.coordinates;
 		
 		var pt = [ coords[1], coords[0] ];
-		var zm = Math.max(12, f.properties["mz:min_zoom"]);
+		var zm = 12;
+
+		if (f.properties["mz:min_zoom"]){
+		    zm = Math.max(12, f.properties["mz:min_zoom"]);
+		}
+		
 		map.setView(pt, zm);
 		
 	    } else {
@@ -74,7 +79,7 @@ window.addEventListener("load", function load(event){
 		whosonfirst.spelunker.leaflet.draw_point(map, f, layer_args);
 		return;
 	    }
-
+	    
 	    var bbox_style = whosonfirst.spelunker.leaflet.styles.bbox();
 
 	    var bbox_layer_args = {
@@ -83,11 +88,13 @@ window.addEventListener("load", function load(event){
 	    }
 	    
 	    whosonfirst.spelunker.leaflet.draw_bbox(map, f, bbox_layer_args);
-	    
+
+	    var pt_handler = whosonfirst.spelunker.leaflet.handlers.point(pt_handler_layer_args);	    
 	    var poly_style = whosonfirst.spelunker.leaflet.styles.consensus_polygon();
 	    
 	    var poly_layer_args = {
 		style: poly_style,
+		pointToLayer: pt_handler,		
 		pane: poly_pane_name,
 	    };
 	    
@@ -241,12 +248,16 @@ window.addEventListener("load", function load(event){
     var is_deprecated = false;    
     var is_superseded = false;
     var is_superseding = false;
+
+    // uuuu is "unknown" (EDTF 2012)
+    // "" is "open (EDTF 2019)
+    // .. is "open" (ETDF 2019)
     
     if ((props["edtf:deprecated"]) && (props["edtf:deprecated"] != "")){
 	is_deprecated = true;
     }
-
-    if ((! props["src:alt_label"]) && (props["edtf:cessation"] != "") && (props["edtf:cessation"] != "uuuu")){
+    
+    if ((props["edtf:cessation"] != "") && (props["edtf:cessation"] != "uuuu") && (props["edtf:cessation"] != "..")){
 	is_ceased = true;
     }
 
@@ -257,7 +268,9 @@ window.addEventListener("load", function load(event){
 	span.appendChild(document.createTextNode("This record is deprecated. "));
 	map_wrapper.appendChild(span);
 
-	document.querySelector("#writefield-link").style.display = "none";
+	// https://github.com/whosonfirst/go-whosonfirst-spelunker-httpd/issues/43
+	// document.querySelector("#writefield-link").style.display = "none";
+	
     } else if (is_ceased){
 	var el = document.createTextNode("This record is ceased. ");
 	map_wrapper.appendChild(el);
@@ -282,10 +295,12 @@ window.addEventListener("load", function load(event){
 	
 	for (var i=0; i < count_supersedes; i++){
 	    var a = document.createElement("a");
-	    a.setAttribute("href", "#");
+	    // Please stop hardcoding this...
+	    // https://github.com/whosonfirst/go-whosonfirst-spelunker-httpd/issues/2
+	    a.setAttribute("href", "/id/" + props["wof:supersedes"][i]);
 	    a.setAttribute("class", "wof-namify");
 	    a.setAttribute("data-wof-id", props["wof:supersedes"][i]);
-	    a.appendChild(document.createTextNode(props["wof:supersedes"]));
+	    a.appendChild(document.createTextNode(props["wof:supersedes"][i]));
 
 	    var c = document.createElement("code");
 	    c.appendChild(document.createTextNode(props["wof:supersedes"][i]));
@@ -315,10 +330,12 @@ window.addEventListener("load", function load(event){
 
 	for (var i=0; i < count_superseded_by; i++){
 	    var a = document.createElement("a");
-	    a.setAttribute("href", "#");
+	    // Please stop hardcoding this...
+	    // https://github.com/whosonfirst/go-whosonfirst-spelunker-httpd/issues/2	    
+	    a.setAttribute("href", "/id/" + props["wof:superseded_by"][i]);
 	    a.setAttribute("class", "wof-namify");
 	    a.setAttribute("data-wof-id", props["wof:superseded_by"][i]);
-	    a.appendChild(document.createTextNode(props["wof:superseded_by"]));
+	    a.appendChild(document.createTextNode(props["wof:superseded_by"][i]));
 
 	    var c = document.createElement("code");
 	    c.appendChild(document.createTextNode(props["wof:superseded_by"][i]));

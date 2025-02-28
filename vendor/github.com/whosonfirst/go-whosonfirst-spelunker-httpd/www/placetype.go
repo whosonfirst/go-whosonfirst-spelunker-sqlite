@@ -3,15 +3,14 @@ package www
 import (
 	"fmt"
 	"html/template"
-	"log/slog"
 	"net/http"
 
 	"github.com/aaronland/go-pagination"
-	"github.com/aaronland/go-pagination/countable"
 	"github.com/sfomuseum/go-http-auth"
 	"github.com/whosonfirst/go-whosonfirst-placetypes"
 	"github.com/whosonfirst/go-whosonfirst-spelunker"
 	"github.com/whosonfirst/go-whosonfirst-spelunker-httpd"
+	wof_funcs "github.com/whosonfirst/go-whosonfirst-spelunker-httpd/templates/funcs"
 	"github.com/whosonfirst/go-whosonfirst-spr/v2"
 )
 
@@ -31,6 +30,7 @@ type HasPlacetypeHandlerVars struct {
 	PaginationURL    string
 	FacetsURL        string
 	FacetsContextURL string
+	OpenGraph        *OpenGraph
 }
 
 func HasPlacetypeHandler(opts *HasPlacetypeHandlerOptions) (http.Handler, error) {
@@ -44,9 +44,7 @@ func HasPlacetypeHandler(opts *HasPlacetypeHandlerOptions) (http.Handler, error)
 	fn := func(rsp http.ResponseWriter, req *http.Request) {
 
 		ctx := req.Context()
-
-		logger := slog.Default()
-		logger = logger.With("request", req.URL)
+		logger := httpd.LoggerWithRequest(req, nil)
 
 		req_pt := req.PathValue("placetype")
 
@@ -60,7 +58,7 @@ func HasPlacetypeHandler(opts *HasPlacetypeHandlerOptions) (http.Handler, error)
 			return
 		}
 
-		pg_opts, err := countable.NewCountableOptions()
+		pg_opts, err := httpd.PaginationOptionsFromRequest(req)
 
 		if err != nil {
 			logger.Error("Failed to create pagination options", "error", err)
@@ -68,17 +66,7 @@ func HasPlacetypeHandler(opts *HasPlacetypeHandlerOptions) (http.Handler, error)
 			return
 		}
 
-		pg, pg_err := httpd.ParsePageNumberFromRequest(req)
-
-		if pg_err == nil {
-			logger = logger.With("page", pg)
-			pg_opts.Pointer(pg)
-		}
-
-		filter_params := []string{
-			"placetype",
-			"country",
-		}
+		filter_params := httpd.DefaultFilterParams()
 
 		filters, err := httpd.FiltersFromRequest(ctx, req, filter_params)
 
@@ -96,15 +84,34 @@ func HasPlacetypeHandler(opts *HasPlacetypeHandlerOptions) (http.Handler, error)
 			return
 		}
 
-		pagination_url := fmt.Sprintf("%s?", req.URL.Path)
+		pagination_url := httpd.URIForPlacetype(opts.URIs.Placetype, pt.Name, filters, nil)
+
+		// This is not ideal but I am not sure what is better yet...
+		facets_url := httpd.URIForPlacetype(opts.URIs.PlacetypeFaceted, pt.Name, filters, nil)
+		facets_context_url := req.URL.Path
 
 		vars := HasPlacetypeHandlerVars{
-			PageTitle:     pt.Name,
-			URIs:          opts.URIs,
-			Placetype:     pt,
-			Places:        r.Results(),
-			Pagination:    pg_r,
-			PaginationURL: pagination_url,
+			PageTitle:        pt.Name,
+			URIs:             opts.URIs,
+			Placetype:        pt,
+			Places:           r.Results(),
+			Pagination:       pg_r,
+			PaginationURL:    pagination_url,
+			FacetsURL:        facets_url,
+			FacetsContextURL: facets_context_url,
+		}
+
+		is_pt := wof_funcs.IsAPlacetype(pt.Name)
+
+		og_title := fmt.Sprintf(`Who's On First \"%s\" records`, pt.Name)
+		og_desc := fmt.Sprintf("Who's On First records that are %s", is_pt)
+
+		vars.OpenGraph = &OpenGraph{
+			Type:        "Article",
+			SiteName:    "Who's On First Spelunker",
+			Title:       og_title,
+			Description: og_desc,
+			Image:       "",
 		}
 
 		rsp.Header().Set("Content-Type", "text/html")

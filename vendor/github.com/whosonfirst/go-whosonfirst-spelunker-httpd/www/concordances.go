@@ -3,7 +3,6 @@ package www
 import (
 	"fmt"
 	"html/template"
-	"log/slog"
 	"net/http"
 
 	"github.com/sfomuseum/go-http-auth"
@@ -22,6 +21,7 @@ type ConcordancesHandlerVars struct {
 	PageTitle string
 	URIs      *httpd.URIs
 	Facets    []*spelunker.FacetCount
+	OpenGraph *OpenGraph
 }
 
 func ConcordancesHandler(opts *ConcordancesHandlerOptions) (http.Handler, error) {
@@ -35,9 +35,7 @@ func ConcordancesHandler(opts *ConcordancesHandlerOptions) (http.Handler, error)
 	fn := func(rsp http.ResponseWriter, req *http.Request) {
 
 		ctx := req.Context()
-
-		logger := slog.Default()
-		logger = logger.With("request", req.URL)
+		logger := httpd.LoggerWithRequest(req, nil)
 
 		faceting, err := opts.Spelunker.GetConcordances(ctx)
 
@@ -51,6 +49,14 @@ func ConcordancesHandler(opts *ConcordancesHandlerOptions) (http.Handler, error)
 			PageTitle: "Concordances",
 			URIs:      opts.URIs,
 			Facets:    faceting.Results,
+		}
+
+		vars.OpenGraph = &OpenGraph{
+			Type:        "Article",
+			SiteName:    "Who's On First Spelunker",
+			Title:       "Concordances with Who's On First",
+			Description: `Other data sources that Who's On First "holds hands" with`,
+			Image:       "",
 		}
 
 		rsp.Header().Set("Content-Type", "text/html")

@@ -10,7 +10,7 @@ server:
 		-tags "icu json1 fts5" \
 		cmd/httpd/main.go \
 		-server-uri http://localhost:8080 \
-		-spelunker-uri 'sql://sqlite3?vfs=$(VFS_URI)'
+		-spelunker-uri 'sql://sqlite3?dsn=$(DSN)'
 
 lambda:
 	@make lambda-server

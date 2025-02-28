@@ -3,17 +3,16 @@ package www
 import (
 	"fmt"
 	"html/template"
-	"log/slog"
 	"net/http"
 	"path/filepath"
 	"strings"
 
 	"github.com/sfomuseum/go-http-auth"
 	"github.com/tidwall/gjson"
-	"github.com/whosonfirst/go-whosonfirst-feature/properties"
 	"github.com/whosonfirst/go-whosonfirst-placetypes"
 	"github.com/whosonfirst/go-whosonfirst-spelunker"
 	"github.com/whosonfirst/go-whosonfirst-spelunker-httpd"
+	wof_funcs "github.com/whosonfirst/go-whosonfirst-spelunker-httpd/templates/funcs"
 	"github.com/whosonfirst/go-whosonfirst-uri"
 )
 
@@ -41,6 +40,7 @@ type IdHandlerVars struct {
 	RelPath          string
 	GitHubURL        string
 	WriteFieldURL    string
+	OpenGraph        *OpenGraph
 }
 
 func IdHandler(opts *IdHandlerOptions) (http.Handler, error) {
@@ -60,14 +60,12 @@ func IdHandler(opts *IdHandlerOptions) (http.Handler, error) {
 	fn := func(rsp http.ResponseWriter, req *http.Request) {
 
 		ctx := req.Context()
-
-		logger := slog.Default()
-		logger = logger.With("request", req.URL)
+		logger := httpd.LoggerWithRequest(req, nil)
 
 		req_uri, err, status := httpd.ParseURIFromRequest(req, nil)
 
 		if err != nil {
-			slog.Error("Failed to parse URI from request", "error", err)
+			logger.Error("Failed to parse URI from request", "error", err)
 			http.Error(rsp, spelunker.ErrNotFound.Error(), status)
 			return
 		}
@@ -77,36 +75,46 @@ func IdHandler(opts *IdHandlerOptions) (http.Handler, error) {
 		req_id, err := uri.Id2Fname(req_uri.Id, req_uri.URIArgs)
 
 		if err != nil {
-			slog.Error("Failed to derive request ID", "error", err)
+			logger.Error("Failed to derive request ID", "error", err)
 			http.Error(rsp, spelunker.ErrNotFound.Error(), http.StatusNotFound)
 			return
 		}
 
 		req_id = strings.Replace(req_id, filepath.Ext(req_id), "", 1)
 
-		logger = logger.With("request id", req_id)
 		logger = logger.With("wof id", wof_id)
 
-		f, err := httpd.FeatureFromRequestURI(ctx, opts.Spelunker, req_uri)
+		uri_args := new(uri.URIArgs)
+
+		f, err := opts.Spelunker.GetRecordForId(ctx, wof_id, uri_args)
 
 		if err != nil {
-			slog.Error("Failed to get by ID", "error", err)
+			logger.Error("Failed to get by ID", "error", err)
 			http.Error(rsp, spelunker.ErrNotFound.Error(), http.StatusNotFound)
 			return
 		}
 
-		props := gjson.GetBytes(f, "properties")
-		page_title := gjson.GetBytes(f, "properties.wof:name")
+		name_rsp := gjson.GetBytes(f, "wof:name")
+		wof_name := name_rsp.String()
+
+		country_rsp := gjson.GetBytes(f, "wof:country")
+		wof_country := country_rsp.String()
+
+		country_name, country_exists := httpd.CountryCodeLookup[wof_country]
+
+		if !country_exists {
+			country_name = wof_country
+		}
 
 		rel_path, err := uri.Id2RelPath(wof_id, req_uri.URIArgs)
 
 		if err != nil {
-			slog.Error("Failed to derive relative path for record", "error", err)
+			logger.Error("Failed to derive relative path for record", "error", err)
 			http.Error(rsp, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		repo_name := gjson.GetBytes(f, "properties.wof:repo")
+		repo_name := gjson.GetBytes(f, "wof:repo")
 
 		github_url := fmt.Sprintf("https://github.com/whosonfirst-data/%s/blob/master/data/%s", repo_name, rel_path)
 
@@ -114,8 +122,8 @@ func IdHandler(opts *IdHandlerOptions) (http.Handler, error) {
 			Id:         wof_id,
 			RequestId:  req_id,
 			URIArgs:    req_uri.URIArgs,
-			Properties: props.String(),
-			PageTitle:  page_title.String(),
+			Properties: string(f),
+			PageTitle:  wof_name,
 			GitHubURL:  github_url,
 			URIs:       opts.URIs,
 			RelPath:    rel_path,
@@ -128,7 +136,7 @@ func IdHandler(opts *IdHandlerOptions) (http.Handler, error) {
 			err = alt_t.Execute(rsp, vars)
 
 			if err != nil {
-				slog.Error("Failed to return ", "error", err)
+				logger.Error("Failed to return ", "error", err)
 				http.Error(rsp, "womp womp", http.StatusInternalServerError)
 			}
 
@@ -138,19 +146,19 @@ func IdHandler(opts *IdHandlerOptions) (http.Handler, error) {
 		count_descendants, err := opts.Spelunker.CountDescendants(ctx, wof_id)
 
 		if err != nil {
-			slog.Error("Failed to count descendants", "error", err)
+			logger.Error("Failed to count descendants", "error", err)
 			http.Error(rsp, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
 		// START OF there's got to be a better way to do this...
 
-		str_pt := gjson.GetBytes(f, "properties.wof:placetype")
+		str_pt := gjson.GetBytes(f, "wof:placetype")
 
 		pt, err := placetypes.GetPlacetypeByName(str_pt.String())
 
 		if err != nil {
-			slog.Error("Failed to load placetype", "placetype", str_pt, "error", err)
+			logger.Error("Failed to load placetype", "placetype", str_pt, "error", err)
 			http.Error(rsp, "Internal server error", http.StatusInternalServerError)
 			return
 		}
@@ -159,6 +167,20 @@ func IdHandler(opts *IdHandlerOptions) (http.Handler, error) {
 			"common",
 			"optional",
 			"common_optional",
+		}
+
+		// If custom placetype assume the most granular placetype for constructing
+		// ordered list from hierarchy.
+
+		if pt.Name == "custom" {
+
+			v, err := placetypes.GetPlacetypeByName("installation")
+
+			if err != nil {
+				logger.Warn("Failed to instantiate 'installation' placetype, %w", err)
+			} else {
+				pt = v
+			}
 		}
 
 		ancestors := placetypes.AncestorsForRoles(pt, roles)
@@ -171,7 +193,23 @@ func IdHandler(opts *IdHandlerOptions) (http.Handler, error) {
 			sorted = append(sorted, n.String())
 		}
 
-		hierarchies := properties.Hierarchies(f)
+		hierarchies := make([]map[string]int64, 0)
+
+		h_rsp := gjson.GetBytes(f, "wof:hierarchy")
+
+		if h_rsp.Exists() {
+
+			for _, h := range h_rsp.Array() {
+
+				dict := make(map[string]int64)
+
+				for k, v := range h.Map() {
+					dict[k] = v.Int()
+				}
+
+				hierarchies = append(hierarchies, dict)
+			}
+		}
 
 		handler_hierarchies := make([][]*IdHandlerAncestor, len(hierarchies))
 
@@ -207,12 +245,55 @@ func IdHandler(opts *IdHandlerOptions) (http.Handler, error) {
 		vars.Hierarchies = handler_hierarchies
 		vars.WriteFieldURL = writefield_url
 
+		// START OF put me in a function or something...
+
+		is_pt := wof_funcs.IsAPlacetype(str_pt.String())
+
+		var og_desc string
+
+		switch str_pt.String() {
+		case "continent", "planet", "empire", "ocean":
+			og_desc = fmt.Sprintf("%s (%d) is %s", wof_name, wof_id, is_pt)
+		case "country":
+			og_desc = fmt.Sprintf("%s (%d) is %s :flag-%s:", wof_name, wof_id, is_pt, strings.ToLower(wof_country))
+		default:
+
+			var og_country string
+
+			switch wof_country {
+			case "US":
+				og_country = fmt.Sprintf("the %s", country_name)
+			default:
+				og_country = country_name
+			}
+
+			og_desc = fmt.Sprintf("%s (%d) is %s in %s :flag-%s:", wof_name, wof_id, is_pt, og_country, strings.ToLower(wof_country))
+		}
+
+		// END OF put me in a function or something...
+
+		svg_url := httpd.URIForIdSimple(opts.URIs.SVG, wof_id)
+
+		og_image, err := opts.URIs.Abs(svg_url)
+
+		if err != nil {
+			logger.Error("Failed to derive absolute URL for SVG image", "url", svg_url, "error", err)
+		}
+
+		vars.OpenGraph = &OpenGraph{
+			Type:        "Article",
+			SiteName:    "Who's On First Spelunker",
+			Title:       wof_name,
+			Description: og_desc,
+			Image:       og_image,
+		}
+
 		rsp.Header().Set("Content-Type", "text/html")
 
 		err = t.Execute(rsp, vars)
 
 		if err != nil {
-			slog.Error("Failed to return ", "error", err)
+			logger.Error("Failed to return ", "error", err)
 			http.Error(rsp, "womp womp", http.StatusInternalServerError)
 		}
 

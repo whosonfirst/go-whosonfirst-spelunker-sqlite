@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aaronland/go-roster"	
+	"github.com/aaronland/go-roster"
 )
 
 // type Authenticator is a simple interface for	enforcing authentication in HTTP handlers.
@@ -17,7 +17,7 @@ type Authenticator interface {
 	// WrapHandler wraps a `http.Handler` with any implementation-specific middleware.
 	WrapHandler(http.Handler) http.Handler
 	// GetAccountForRequest returns an `Account` instance  for an HTTP request.
-	GetAccountForRequest(*http.Request) (*Account, error)
+	GetAccountForRequest(*http.Request) (Account, error)
 	// SigninHandler returns a `http.Handler` for implementing account signin.
 	SigninHandler() http.Handler
 	// SignoutHandler returns a `http.Handler` for implementing account signout.

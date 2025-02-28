@@ -3,12 +3,10 @@ package www
 import (
 	"fmt"
 	"html/template"
-	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/aaronland/go-pagination"
-	"github.com/aaronland/go-pagination/countable"
 	"github.com/sfomuseum/go-http-auth"
 	"github.com/whosonfirst/go-whosonfirst-sources"
 	"github.com/whosonfirst/go-whosonfirst-spelunker"
@@ -33,6 +31,7 @@ type HasConcordanceHandlerVars struct {
 	FacetsURL        string
 	FacetsContextURL string
 	Source           *sources.WOFSource
+	OpenGraph        *OpenGraph
 }
 
 func HasConcordanceHandler(opts *HasConcordanceHandlerOptions) (http.Handler, error) {
@@ -46,9 +45,7 @@ func HasConcordanceHandler(opts *HasConcordanceHandlerOptions) (http.Handler, er
 	fn := func(rsp http.ResponseWriter, req *http.Request) {
 
 		ctx := req.Context()
-
-		logger := slog.Default()
-		logger = logger.With("request", req.URL)
+		logger := httpd.LoggerWithRequest(req, nil)
 
 		ns := req.PathValue("namespace")
 		pred := req.PathValue("predicate")
@@ -58,13 +55,25 @@ func HasConcordanceHandler(opts *HasConcordanceHandlerOptions) (http.Handler, er
 		pred = strings.TrimLeft(pred, ":")
 		pred = strings.TrimRight(pred, "=")
 
-		c := spelunker.NewConcordanceFromTriple(ns, pred, value)
-
 		logger = logger.With("namespace", ns)
 		logger = logger.With("predicate", pred)
 		logger = logger.With("value", value)
 
-		pg_opts, err := countable.NewCountableOptions()
+		if ns == "*" {
+			ns = ""
+		}
+
+		if pred == "*" {
+			pred = ""
+		}
+
+		if value == "*" {
+			value = ""
+		}
+
+		c := spelunker.NewConcordanceFromTriple(ns, pred, value)
+
+		pg_opts, err := httpd.PaginationOptionsFromRequest(req)
 
 		if err != nil {
 			logger.Error("Failed to create pagination options", "error", err)
@@ -72,17 +81,7 @@ func HasConcordanceHandler(opts *HasConcordanceHandlerOptions) (http.Handler, er
 			return
 		}
 
-		pg, pg_err := httpd.ParsePageNumberFromRequest(req)
-
-		if pg_err == nil {
-			logger = logger.With("page", pg)
-			pg_opts.Pointer(pg)
-		}
-
-		filter_params := []string{
-			"placetype",
-			"country",
-		}
+		filter_params := httpd.DefaultFilterParams()
 
 		filters, err := httpd.FiltersFromRequest(ctx, req, filter_params)
 
@@ -100,24 +99,71 @@ func HasConcordanceHandler(opts *HasConcordanceHandlerOptions) (http.Handler, er
 			return
 		}
 
-		pagination_url := fmt.Sprintf("%s?", req.URL.Path)
-
 		page_title := fmt.Sprintf("Concordances for %s", c)
 
-		src, err := sources.GetSourceByName(ns)
+		var src *sources.WOFSource
 
-		if err != nil {
-			logger.Error("Failed to derive source from namespace", "error", err)
+		if ns != "" {
+
+			v, err := sources.GetSourceByPrefix(ns)
+
+			if err != nil {
+				logger.Warn("Failed to derive source from namespace", "error", err)
+			} else {
+				src = v
+			}
 		}
 
+		var pagination_url string
+		var facets_url string
+		var facets_context_url string
+
+		switch {
+		case ns != "" && pred != "" && value != "":
+			pagination_url = httpd.URIForConcordanceTriple(opts.URIs.ConcordanceTriple, ns, pred, value, filters, nil)
+			facets_url = httpd.URIForConcordanceTriple(opts.URIs.ConcordanceTripleFaceted, ns, pred, value, filters, nil)
+		case ns != "" && pred != "":
+			pagination_url = httpd.URIForConcordanceNSPred(opts.URIs.ConcordanceNSPred, ns, pred, filters, nil)
+			facets_url = httpd.URIForConcordanceNSPred(opts.URIs.ConcordanceNSPredFaceted, ns, pred, filters, nil)
+		case pred != "" && value != "":
+			pagination_url = httpd.URIForConcordanceTriple(opts.URIs.ConcordanceTriple, "*", pred, value, filters, nil)
+			facets_url = httpd.URIForConcordanceTriple(opts.URIs.ConcordanceTripleFaceted, "*", pred, value, filters, nil)
+		case ns != "" && value != "":
+			pagination_url = httpd.URIForConcordanceTriple(opts.URIs.ConcordanceTriple, ns, "*", value, filters, nil)
+			facets_url = httpd.URIForConcordanceTriple(opts.URIs.ConcordanceTripleFaceted, ns, "*", value, filters, nil)
+		case ns != "":
+			pagination_url = httpd.URIForConcordanceNS(opts.URIs.ConcordanceNS, ns, filters, nil)
+			facets_url = httpd.URIForConcordanceNS(opts.URIs.ConcordanceNSFaceted, ns, filters, nil)
+		case pred != "":
+			pagination_url = httpd.URIForConcordanceTriple(opts.URIs.ConcordanceTriple, "*", pred, "*", filters, nil)
+			facets_url = httpd.URIForConcordanceTriple(opts.URIs.ConcordanceTripleFaceted, "*", pred, "*", filters, nil)
+		case value != "":
+			pagination_url = httpd.URIForConcordanceTriple(opts.URIs.ConcordanceTriple, "*", "*", value, filters, nil)
+			facets_url = httpd.URIForConcordanceTriple(opts.URIs.ConcordanceTripleFaceted, "*", "*", value, filters, nil)
+		default:
+			logger.Info("WUT")
+		}
+
+		facets_context_url = req.URL.Path
+
 		vars := HasConcordanceHandlerVars{
-			PageTitle:     page_title,
-			URIs:          opts.URIs,
-			Concordance:   c,
-			Places:        r.Results(),
-			Pagination:    pg_r,
-			PaginationURL: pagination_url,
-			Source:        src,
+			PageTitle:        page_title,
+			URIs:             opts.URIs,
+			Concordance:      c,
+			Places:           r.Results(),
+			Pagination:       pg_r,
+			Source:           src,
+			PaginationURL:    pagination_url,
+			FacetsURL:        facets_url,
+			FacetsContextURL: facets_context_url,
+		}
+
+		vars.OpenGraph = &OpenGraph{
+			Type:        "Article",
+			SiteName:    "Who's On First Spelunker",
+			Title:       fmt.Sprintf(`Who's On First concordances for \"%s\"`, c),
+			Description: fmt.Sprintf(`Who's On First records that "hold hands" with records from %s`, src.Fullname),
+			Image:       "",
 		}
 
 		rsp.Header().Set("Content-Type", "text/html")

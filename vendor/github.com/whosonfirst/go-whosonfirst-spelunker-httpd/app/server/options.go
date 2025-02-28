@@ -6,6 +6,7 @@ import (
 	"fmt"
 	html_template "html/template"
 	io_fs "io/fs"
+	"net/url"
 
 	"github.com/aaronland/go-http-server/handler"
 	"github.com/mitchellh/copystructure"
@@ -26,6 +27,7 @@ type RunOptions struct {
 	HTMLTemplateFuncs html_template.FuncMap               `json:"template_funcs,omitempty"`
 	StaticAssets      io_fs.FS                            `json:"static_assets,omitempty"`
 	CustomHandlers    map[string]handler.RouteHandlerFunc `json:"custom_handlers,omitempty"`
+	ProtomapsApiKey   string                              `json:"protomaps_api_key"`
 }
 
 func (o *RunOptions) Clone() (*RunOptions, error) {
@@ -58,7 +60,18 @@ func RunOptionsFromFlagSet(ctx context.Context, fs *flag.FlagSet) (*RunOptions, 
 		return nil, fmt.Errorf("Failed to assign flags from environment variables, %w", err)
 	}
 
+	if root_url == "" {
+		root_url = server_uri
+	}
+
+	root_u, err := url.Parse(root_url)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse root_url '%s', %w", root_url, err)
+	}
+
 	uris_table = httpd.DefaultURIs()
+	uris_table.RootURL = root_u.String()
 
 	t_funcs := html_template.FuncMap{
 		"IsAvailable": sfom_funcs.IsAvailable,
@@ -71,8 +84,13 @@ func RunOptionsFromFlagSet(ctx context.Context, fs *flag.FlagSet) (*RunOptions, 
 		"FormatStringTime": sfom_funcs.FormatStringTime,
 		"FormatUnixTime":   sfom_funcs.FormatUnixTime,
 		"GjsonGet":         sfom_funcs.GjsonGet,
-		"URIForId":         httpd.URIForId,
+		// https://github.com/golang/go/issues/57773
+		"URIForId":         httpd.URIForIdSimple,
+		"URIForRecent":     httpd.URIForRecentSimple,
 		"NameForSource":    wof_funcs.NameForSource,
+		"FormatNumber":     wof_funcs.FormatNumber,
+		"AppendPagination": wof_funcs.AppendPagination,
+		"IsAPlacetype":     wof_funcs.IsAPlacetype,
 	}
 
 	opts := &RunOptions{
@@ -83,6 +101,7 @@ func RunOptionsFromFlagSet(ctx context.Context, fs *flag.FlagSet) (*RunOptions, 
 		HTMLTemplates:     []io_fs.FS{html.FS},
 		HTMLTemplateFuncs: t_funcs,
 		StaticAssets:      static.FS,
+		ProtomapsApiKey:   protomaps_api_key,
 	}
 
 	return opts, nil
